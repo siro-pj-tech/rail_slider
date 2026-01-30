@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Rail Slider 2D - スライドパズルで列車を導くアクションパズルゲーム。チクタクバンバンへのリスペクトを込めて作成されました。">
+    <meta name="author" content="Your Name / GitHub Username">
+    <title>Rail Slider 2D - Master Edition</title>
+    <!--
+    Rail Slider 2D v1.0
+    Inspired by: Nomura Toy's "Chiku Taku Ban Ban"
+    Developed with: HTML5, CSS3, JavaScript (Web Audio API)
+    -->
+    <style>
+        :root {
+            --bg-color: #000;
+            --page-bg: #111;
+            --grid-line: rgba(255, 255, 255, 0.05);
+            --line-color: #fff;
+            --lock-color: #0f0; 
+            --tile-size: 55px;
+            --rail-width: 6px;
+            --transition-speed: 0.6s; 
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            background-color: var(--page-bg);
+            color: var(--line-color);
+            font-family: 'Helvetica Neue', Helvetica, sans-serif;
+            overflow-x: hidden;
+            display: flex;
+            justify-content: center; 
+            align-items: center;
+            height: 100vh;
+            transition: background-color 0.8s ease;
+        }
+
+        #main-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+        }
+
+        #hud {
+            width: 100%;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 100;
+        }
+
+        #level-display { display: flex; align-items: center; gap: 5px; }
+        .crown-area { display: flex; align-items: center; gap: 2px; color: #ffd700; }
+        .crown-icon { text-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+        #status-display { color: var(--line-color); min-width: 80px; text-align: right; }
+
+        #game-view {
+            position: relative;
+            border: 4px solid var(--line-color);
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: var(--tile-size) var(--tile-size);
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            touch-action: none;
+            flex-shrink: 0;
+            width: calc(var(--tile-size) * 4 + 8px);
+            height: calc(var(--tile-size) * 10 + 8px);
+        }
+
+        .tile {
+            position: absolute;
+            width: var(--tile-size);
+            height: var(--tile-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #000;
+        }
+
+        .puzzle-tile {
+            border: 1px solid rgba(255,255,255,0.3);
+            z-index: 10;
+            transition: transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .puzzle-tile.locked {
+            border: 3px solid var(--lock-color);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+            z-index: 15;
+        }
+
+        .block-tile {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(128,128,128,0.3) 5px, rgba(128,128,128,0.3) 10px);
+            border: 0.5px solid rgba(255,255,255,0.1);
+        }
+
+        .break-tile { border: 2px solid #fff; }
+        .break-core { width: 18px; height: 18px; background-color: #fff; border-radius: 2px; }
+
+        .rail-svg { width: 100%; height: 100%; }
+        .rail-path { fill: none; stroke: var(--line-color); stroke-width: var(--rail-width); stroke-linecap: round; }
+
+        @keyframes train-wobble {
+            0% { transform: translate(-50%, -50%) rotate(-3deg); }
+            50% { transform: translate(-50%, -50%) rotate(3deg); }
+            100% { transform: translate(-50%, -50%) rotate(-3deg); }
+        }
+
+        #train {
+            position: absolute;
+            width: 26px; height: 26px;
+            background: var(--line-color);
+            border-radius: 4px;
+            z-index: 100;
+            box-shadow: 0 0 15px #fff;
+            pointer-events: none;
+            display: none;
+            transform-origin: center center;
+            left: 0; top: 0;
+            transform: translate(-50%, -50%);
+        }
+
+        #train.running { animation: train-wobble 0.2s infinite ease-in-out; }
+
+        .steam { position: absolute; background: #fff; border-radius: 50%; pointer-events: none; z-index: 99; opacity: 0.6; }
+        .particle { position: absolute; background: #fff; border-radius: 50%; pointer-events: none; z-index: 101; }
+
+        #ui-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+            background: rgba(0,0,0,0.3);
+            justify-content: center;
+        }
+
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 55px);
+            gap: 10px;
+            padding: 10px 0;
+        }
+
+        .ctrl-btn {
+            width: 55px; height: 55px;
+            border: 2px solid #fff; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; color: #fff; cursor: pointer;
+            background: rgba(255,255,255,0.05);
+            transition: background 0.2s, color 0.2s;
+        }
+        .ctrl-btn:active:not(:disabled) { background: #fff; color: #000; }
+        .ctrl-btn:disabled { opacity: 0.3; }
+
+        .ctrl-btn.debug-active { background: #fff; color: #000; box-shadow: 0 0 10px #fff; }
+
+        @keyframes pulse-btn {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.95); }
+        }
+        .start-btn { background: #fff; color: #000; font-weight: bold; font-size: 10px; border: none; }
+        .start-btn.demo-pulsing { animation: pulse-btn 2s infinite ease-in-out; box-shadow: 0 0 15px #fff; }
+
+        #settings-accordion {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        #accordion-toggle { padding: 6px 20px; font-size: 10px; font-weight: bold; color: #fff; cursor: pointer; width: 100%; text-align: center; }
+        #accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; width: 100%; background: rgba(0,0,0,0.5); }
+        #accordion-content.open { max-height: 250px; padding: 15px 0; }
+
+        .settings-row { display: flex; justify-content: center; gap: 12px; margin: 8px 0; align-items: center; }
+        .level-btn { padding: 10px 18px; font-size: 12px; font-weight: bold; border: 1px solid #fff; background: transparent; color: #fff; border-radius: 6px; cursor: pointer; }
+        .theme-dot-large { width: 32px; height: 32px; border: 2px solid #fff; border-radius: 50%; cursor: pointer; }
+        input[type=range] { cursor: pointer; width: 150px; accent-color: #fff; }
+
+        #special-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95);
+            display: none; flex-direction: column; justify-content: center; align-items: center; padding: 40px; text-align: center; z-index: 2000; animation: fadeIn 2s ease-in;
+        }
+
+        #special-msg { font-size: 18px; line-height: 1.6; color: #fff; max-width: 600px; font-style: italic; font-weight: bold; }
+        #special-close { margin-top: 30px; padding: 10px 20px; border: 1px solid #fff; background: transparent; color: #fff; cursor: pointer; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        #debug-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; display: none; }
+        #debug-text { position: absolute; top: 5px; left: 5px; font-size: 10px; color: #0f0; background: rgba(0,0,0,0.6); font-family: monospace; padding: 4px; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<div id="main-wrapper">
+    <div id="hud">
+        <div id="level-display">
+            <span id="level-title">LV.1</span>
+            <div id="crown-container" class="crown-area"></div>
+        </div>
+        <div id="status-display">READY</div>
+    </div>
+
+    <div id="game-view">
+        <div id="debug-layer">
+            <div id="debug-text">X: 0.0 Y: 0.0 DIR: 0 SPD: 0.00</div>
+        </div>
+        <div id="static-layer"></div>
+        <div id="puzzle-layer"></div>
+        <div id="train"></div>
+    </div>
+
+    <div id="ui-container">
+        <div id="controls">
+            <button id="main-start-btn" class="ctrl-btn start-btn" onclick="handleStartClick()">START</button>
+            <button class="ctrl-btn" onpointerdown="handleControl('up')">↑</button>
+            <button id="dbg-btn" class="ctrl-btn" style="font-size: 10px;" onclick="toggleDebug()">DBG</button>
+            <button class="ctrl-btn" onpointerdown="handleControl('left')">←</button>
+            <button class="ctrl-btn" onpointerdown="handleControl('down')">↓</button>
+            <button class="ctrl-btn" onpointerdown="handleControl('right')">→</button>
+        </div>
+        
+        <div id="settings-accordion">
+            <div id="accordion-toggle" onclick="toggleSettings()">▼ SETTINGS / DEBUG</div>
+            <div id="accordion-content">
+                <div class="settings-row">
+                    <button class="level-btn" onclick="testLevel(1)">LV.1</button>
+                    <button class="level-btn" onclick="testLevel(2)">LV.2</button>
+                    <button class="level-btn" onclick="testLevel(3)">LV.3</button>
+                </div>
+                <div class="settings-row">
+                    <div class="theme-dot-large" style="background:#000;" onclick="changeTheme(1)"></div>
+                    <div class="theme-dot-large" style="background:#0a0e20;" onclick="changeTheme(2)"></div>
+                    <div class="theme-dot-large" style="background:#4a0e2e;" onclick="changeTheme(3)"></div>
+                    <div class="theme-dot-large" style="background:#e0f2f1;" onclick="changeTheme(4)"></div>
+                    <div class="theme-dot-large" style="background:#ff8f00;" onclick="changeTheme(5)"></div>
+                </div>
+                <div class="settings-row">
+                    <div style="font-size: 10px; font-weight: bold; margin-right: 5px;">VOLUME</div>
+                    <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="updateVolume(this.value)">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="special-overlay">
+    <div id="special-msg"></div>
+    <button id="special-close" onclick="closeSpecial()">CONTINUE</button>
+</div>
+
+<script>
+    const THEMES = {
+        1: { page: "#111111", bg: "#000000", grid: "rgba(255,255,255,0.05)" },
+        2: { page: "#050814", bg: "#0a0e20", grid: "rgba(0,242,255,0.15)" },
+        3: { page: "#2a0518", bg: "#4a0e2e", grid: "rgba(255,0,255,0.15)" },
+        4: { page: "#f0f4f3", bg: "#e0f2f1", grid: "rgba(0,150,136,0.2)" },
+        5: { page: "#3e2723", bg: "#ff8f00", grid: "rgba(0,0,0,0.2)" }
+    };
+
+    const TILE_TYPES = {
+        v: { paths: { 0: 2, 2: 0 }, svg: '<path class="rail-path" d="M27.5,0 L27.5,55"/>' },
+        cross: { paths: { 0: 2, 2: 0, 1: 3, 3: 1 }, svg: '<path class="rail-path" d="M27.5,0 L27.5,55 M0,27.5 L55,27.5"/>' },
+        l_curve: { paths: { 2: 3, 3: 2, 0: 1, 1: 0 }, svg: '<path class="rail-path" d="M27.5,55 Q27.5,27.5 0,27.5"/><path class="rail-path" d="M27.5,0 Q27.5,27.5 55,27.5"/>' },
+        r_curve: { paths: { 2: 1, 1: 2, 0: 3, 3: 0 }, svg: '<path class="rail-path" d="M27.5,55 Q27.5,27.5 55,27.5"/><path class="rail-path" d="M27.5,0 Q27.5,27.5 0,27.5"/>' },
+        c_bl: { paths: { 2: 3, 3: 2 }, svg: '<path class="rail-path" d="M27.5,55 Q27.5,27.5 0,27.5"/>' },
+        c_tr: { paths: { 0: 1, 1: 0 }, svg: '<path class="rail-path" d="M27.5,0 Q27.5,27.5 55,27.5"/>' },
+        c_br: { paths: { 2: 1, 1: 2 }, svg: '<path class="rail-path" d="M27.5,55 Q27.5,27.5 55,27.5"/>' },
+        c_tl: { paths: { 0: 3, 3: 0 }, svg: '<path class="rail-path" d="M27.5,0 Q27.5,27.5 0,27.5"/>' },
+        break: { paths: {}, svg: '' },
+        block: { paths: {}, svg: '' }
+    };
+
+    const LV_CONFIG = {
+        1: { start: {r:9, c:1}, goal: {r:0, c:2}, pStart: 3, pEnd: 6 },
+        2: { start: {r:9, c:0}, goal: {r:0, c:3}, pStart: 2, pEnd: 7 },
+        3: { start: {r:9, c:3}, goal: {r:0, c:0}, pStart: 1, pEnd: 8 }
+    };
+
+    const TILE_SIZE = 55, COLS = 4, TOTAL_ROWS = 10, IDLE_LIMIT = 15000;
+
+    let state = {
+        level: 1, map: [], puzzleTiles: [], emptyPos: { r: 0, c: 0 },
+        active: false, train: { x: 0, y: 0, dir: 0, speed: 0.4 },
+        lastSnappedTile: { r: -1, c: -1 }, lastCheckedTile: { r: -1, c: -1 },
+        gameOver: false, clearHistory: { 1: 0, 2: 0, 3: 0 },
+        milestoneReached: { 1: false, 2: false, 3: false },
+        masterTitleGranted: false, 
+        lastActivity: Date.now(), isDemo: false, debug: false,
+        isSettingsOpen: false, lastTime: 0, volume: 0.5, runningSoundTick: 0
+    };
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(freq, type, duration, vol, ramp) {
+        if (state.volume === 0) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        if (ramp) osc.frequency.exponentialRampToValueAtTime(ramp, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(state.volume * vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function playWhistle() { playSound(600, 'square', 0.5, 0.2, 1000); }
+    function playRunningTick() { playSound(70, 'square', 0.05, 0.3); }
+    function playCrashSound() { playSound(100, 'sawtooth', 0.4, 0.6, 10); }
+
+    function playApplause() {
+        if (state.volume === 0) return;
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        const source = audioCtx.createBufferSource(); source.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1200;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(state.volume * 0.5, audioCtx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
+        source.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+        source.start();
+    }
+
+    function initMap(lv = 1, fromDemo = false) {
+        state.level = lv; state.active = false; state.gameOver = false;
+        state.lastSnappedTile = { r: -1, c: -1 }; state.lastCheckedTile = { r: -1, c: -1 };
+        const config = LV_CONFIG[lv];
+        state.map = Array.from({length: TOTAL_ROWS}, () => Array(COLS).fill(null));
+        state.puzzleTiles = [];
+        const staticLayer = document.getElementById('static-layer'), puzzleLayer = document.getElementById('puzzle-layer');
+        staticLayer.innerHTML = ''; puzzleLayer.innerHTML = '';
+        document.getElementById('level-title').innerText = `LV.${lv}`;
+        const status = document.getElementById('status-display');
+        status.innerText = fromDemo ? "DEMO" : "READY"; status.style.color = "var(--line-color)";
+        const startBtn = document.getElementById('main-start-btn');
+        startBtn.disabled = false; startBtn.innerText = "START";
+        if (fromDemo) { startBtn.classList.add('demo-pulsing'); state.isDemo = true; } 
+        else { startBtn.classList.remove('demo-pulsing'); state.isDemo = false; }
+        const trainEl = document.getElementById('train'); trainEl.style.display = 'none'; trainEl.classList.remove('running');
+        updateHUD();
+
+        let pool = [];
+        const baseSet = ['l_curve','l_curve','l_curve','l_curve','r_curve','r_curve','cross','cross','cross','cross','v','v','c_bl','c_tr','c_br'];
+        const addSet = ['r_curve','cross','c_bl','c_tr','c_br','c_tl','c_tl','break'];
+        if (lv === 1) pool = [...baseSet];
+        else if (lv === 2) pool = [...baseSet, ...addSet];
+        else if (lv === 3) pool = [...baseSet, ...addSet, ...addSet];
+        pool.sort(() => Math.random() - 0.5);
+        state.emptyPos = { r: config.pEnd, c: 3 };
+
+        for (let r = 0; r < TOTAL_ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const isS = (r === config.start.r && c === config.start.c), isG = (r === config.goal.r && c === config.goal.c);
+                const isL = isS || isG || (r > 0 && r < config.pStart && c === config.goal.c) || (r < 9 && r > config.pEnd && c === config.start.c);
+                if (r >= config.pStart && r <= config.pEnd) {
+                    if (r === state.emptyPos.r && c === state.emptyPos.c) continue;
+                    createTile(r, c, pool.pop() || 'cross', puzzleLayer, false);
+                } else {
+                    createTile(r, c, isL ? 'v' : 'block', staticLayer, true, isS ? 'START' : (isG ? 'GOAL' : ''));
+                }
+            }
+        }
+        state.train = { x: config.start.c * TILE_SIZE + TILE_SIZE / 2, y: (config.start.r + 0.5) * TILE_SIZE, dir: 0, speed: 0.4 };
+        updateTrainVisual();
+        if (fromDemo) setTimeout(startGame, 1000);
+    }
+
+    function updateHUD() {
+        const container = document.getElementById('crown-container'); container.innerHTML = '';
+        const count = state.clearHistory[state.level];
+        if (count >= 5) container.innerHTML = `<span class="crown-icon">👑</span>+${count}`;
+        else for(let i=0; i<count; i++) container.innerHTML += '<span class="crown-icon">👑</span>';
+    }
+
+    function createTile(r, c, type, parent, isStatic, label) {
+        const el = document.createElement('div');
+        el.className = `tile ${isStatic ? '' : 'puzzle-tile'} ${type==='break'?'break-tile':(type==='block'?'block-tile':'')}`;
+        el.style.top = (r * TILE_SIZE) + 'px'; el.style.left = (c * TILE_SIZE) + 'px';
+        if (type === 'break') el.innerHTML = '<div class="break-core"></div>';
+        else el.innerHTML = `<svg class="rail-svg" viewBox="0 0 55 55">${TILE_TYPES[type].svg}</svg>`;
+        if (label) el.innerHTML += `<div style="position:absolute;font-size:9px;bottom:2px;width:100%;text-align:center;color:rgba(255,255,255,0.6)">${label}</div>`;
+        const tileData = { r, c, type, el, locked: isStatic };
+        if (!isStatic) {
+            el.onpointerdown = (e) => { e.preventDefault(); resetIdle(); moveTile(tileData.r, tileData.c); };
+            state.puzzleTiles.push(tileData); updateTileVisual(tileData);
+        }
+        state.map[r][c] = tileData; parent.appendChild(el);
+    }
+
+    function updateTileVisual(tile) { tile.el.style.transform = `translate(${tile.c * TILE_SIZE}px, ${tile.r * TILE_SIZE}px)`; tile.el.style.top = '0px'; tile.el.style.left = '0px'; }
+
+    function resetIdle() { state.lastActivity = Date.now(); if (state.isDemo) { state.isDemo = false; initMap(state.level); } }
+
+    function moveTile(targetR, targetC) {
+        if (!state.active && !state.isDemo && !state.debug) return;
+        const er = state.emptyPos.r, ec = state.emptyPos.c;
+        if (targetR !== er && targetC !== ec) return;
+        const clicked = state.map[targetR][targetC];
+        if (clicked?.locked && !state.debug) return;
+        if (targetR === er) {
+            const dist = Math.abs(targetC - ec), step = (targetC - ec) / dist;
+            for (let i = 1; i <= dist; i++) if (state.map[er][ec + i * step]?.locked && !state.debug) return;
+            for (let i = 0; i < dist; i++) {
+                const srcC = state.emptyPos.c + step, tile = state.map[er][srcC];
+                state.map[er][state.emptyPos.c] = tile; state.map[er][srcC] = null;
+                tile.c = state.emptyPos.c; state.emptyPos.c = srcC; updateTileVisual(tile);
+            }
+        } else {
+            const dist = Math.abs(targetR - er), step = (targetR - er) / dist;
+            for (let i = 1; i <= dist; i++) if (state.map[er + i * step][ec]?.locked && !state.debug) return;
+            for (let i = 0; i < dist; i++) {
+                const srcR = state.emptyPos.r + step, tile = state.map[srcR][ec];
+                state.map[state.emptyPos.r][ec] = tile; state.map[srcR][ec] = null;
+                tile.r = state.emptyPos.r; state.emptyPos.r = srcR; updateTileVisual(tile);
+            }
+        }
+    }
+
+    function handleControl(dir) { resetIdle(); let tr = state.emptyPos.r, tc = state.emptyPos.c; if(dir==='up') tr++; if(dir==='down') tr--; if(dir==='left') tc++; if(dir==='right') tc--; if (tr >= 0 && tr < TOTAL_ROWS && tc >= 0 && tc < COLS) moveTile(tr, tc); }
+
+    function handleStartClick() { resetIdle(); if (audioCtx.state === 'suspended') audioCtx.resume(); if (state.gameOver) initMap(state.level); else startGame(); }
+
+    function startGame() {
+        if (state.active || state.gameOver) return;
+        state.active = true; document.getElementById('status-display').innerText = state.isDemo ? "DEMO" : "GO";
+        document.getElementById('status-display').style.color = "#0f0"; document.getElementById('main-start-btn').disabled = true;
+        const trn = document.getElementById('train'); trn.style.display = 'block'; trn.classList.add('running');
+        playWhistle(); state.lastTime = performance.now(); requestAnimationFrame(gameLoop);
+    }
+
+    function createParticle(x, y, isSteam) {
+        const p = document.createElement('div'); p.className = isSteam ? 'steam' : 'particle';
+        const size = isSteam ? 5+Math.random()*10 : 2+Math.random()*6;
+        p.style.width = size+'px'; p.style.height = size+'px'; p.style.left = x+'px'; p.style.top = y+'px';
+        document.getElementById('game-view').appendChild(p);
+        let px = x, py = y, alpha = 1.0, vx = (Math.random()-0.5)*12, vy = isSteam ? -2 : (Math.random()-0.5)*12;
+        const anim = setInterval(() => {
+            px += vx; py += vy; alpha -= 0.04; p.style.left = px+'px'; p.style.top = py+'px'; p.style.opacity = alpha;
+            if (alpha <= 0) { clearInterval(anim); p.remove(); }
+        }, 20);
+    }
+
+    function gameLoop(timestamp) {
+        // --- 常時アイドル監視ロジック ---
+        if (!state.isDemo && !state.debug && !state.active) {
+             if (Date.now() - state.lastActivity > IDLE_LIMIT) {
+                 initMap(state.level, true);
+                 requestAnimationFrame(gameLoop);
+                 return;
+             }
+        }
+
+        if (!state.active || state.gameOver) {
+            requestAnimationFrame(gameLoop); 
+            return;
+        }
+
+        const delta = timestamp - state.lastTime; state.lastTime = timestamp;
+        const factor = Math.min(delta / 16.67, 2.0);
+        state.runningSoundTick += delta;
+        if (state.runningSoundTick > (state.train.speed === 0.8 ? 160 : 320)) { playRunningTick(); state.runningSoundTick = 0; }
+        if (Math.random() < 0.1) createParticle(state.train.x, state.train.y, true);
+        const config = LV_CONFIG[state.level];
+        const curR = Math.floor(state.train.y / TILE_SIZE), curC = Math.floor(state.train.x / TILE_SIZE);
+        state.train.speed = (curR < config.pStart) ? 0.8 : 0.4;
+        const move = state.train.speed * factor;
+        if (state.train.dir === 0) state.train.y -= move; else if (state.train.dir === 1) state.train.x += move; else if (state.train.dir === 2) state.train.y += move; else if (state.train.dir === 3) state.train.x -= move;
+        if (state.train.x < 0 || state.train.x > COLS * TILE_SIZE) { crash("clash!"); return; }
+        if (curR !== state.lastCheckedTile.r || curC !== state.lastCheckedTile.c) {
+            if (curR >= 0 && curR < TOTAL_ROWS && curC >= 0 && curC < COLS) {
+                const nxt = state.map[curR][curC];
+                if (!nxt || nxt.type === 'block' || nxt.type === 'break' || TILE_TYPES[nxt.type].paths[(state.train.dir + 2) % 4] === undefined) { crash("clash!"); return; }
+                state.lastCheckedTile = { r: curR, c: curC };
+            }
+        }
+        if (curR === config.goal.r && curC === config.goal.c) {
+            const gX = curC * TILE_SIZE + TILE_SIZE / 2, gY = curR * TILE_SIZE + TILE_SIZE / 2;
+            if (Math.hypot(state.train.x - gX, state.train.y - gY) < move * 1.5) { 
+                success(); 
+                state.train.x = gX; state.train.y = gY;
+                updateTrainVisual();
+                return; 
+            }
+        }
+        state.puzzleTiles.forEach(t => { t.locked = false; t.el.classList.remove('locked'); });
+        if (curR >= 0 && curR < TOTAL_ROWS && curC >= 0 && curC < COLS) {
+            const tile = state.map[curR][curC]; tile.locked = true; if (tile.el.classList.contains('puzzle-tile')) tile.el.classList.add('locked');
+            const cX = curC * TILE_SIZE + TILE_SIZE / 2, cY = curR * TILE_SIZE + TILE_SIZE / 2;
+            if (Math.hypot(state.train.x - cX, state.train.y - cY) < move && (state.lastSnappedTile.r !== curR || state.lastSnappedTile.c !== curC)) {
+                state.train.x = cX; state.train.y = cY; state.train.dir = TILE_TYPES[tile.type].paths[(state.train.dir + 2) % 4]; state.lastSnappedTile = { r: curR, c: curC };
+            }
+        } else if (state.train.y > TOTAL_ROWS * TILE_SIZE + 20) { crash("clash!"); return; }
+        updateTrainVisual(); requestAnimationFrame(gameLoop);
+    }
+
+    function success() {
+        state.gameOver = true; state.active = false; playApplause();
+        document.getElementById('train').classList.remove('running');
+        let showOverlay = false, msg = "";
+        if (!state.isDemo && !state.debug) {
+            state.clearHistory[state.level]++; updateHUD();
+            if (state.level === 3 && state.clearHistory[3] === 1 && !state.masterTitleGranted) {
+                state.masterTitleGranted = true;
+                msg = "I can't believe it! <br> You're a puzzle god! <br><br> I'll give you the title of <br> 'Rail Slider Master'! <br><br> Congratulations!";
+                showOverlay = true;
+            } else if (state.clearHistory[state.level] === 5 && !state.milestoneReached[state.level]) {
+                state.milestoneReached[state.level] = true;
+                msg = "Thank you for playing so much. <br> I pay my utmost respect to you. <br><br> And I also thank everyone at Nomura Toy <br> for giving me this idea. <br><br> Thank you all so much.";
+                showOverlay = true;
+            }
+        }
+        document.getElementById('status-display').innerText = state.isDemo ? "DEMO END" : "CLEAR!";
+        document.getElementById('status-display').style.color = "#0ff";
+        const btn = document.getElementById('main-start-btn'); btn.disabled = false; btn.innerText = "RETRY";
+        if (showOverlay) {
+            document.getElementById('special-msg').innerHTML = msg;
+            setTimeout(() => document.getElementById('special-overlay').style.display = 'flex', 500);
+        }
+        if (state.isDemo) setTimeout(() => initMap(state.level, true), 2000);
+    }
+
+    function crash(msg) {
+        state.gameOver = true; state.active = false;
+        const trn = document.getElementById('train'); trn.style.display = 'none'; trn.classList.remove('running');
+        for (let i = 0; i < 25; i++) createParticle(state.train.x, state.train.y, false);
+        playCrashSound();
+        const sd = document.getElementById('status-display'); sd.innerText = msg; sd.style.color = "#f00";
+        const btn = document.getElementById('main-start-btn'); btn.disabled = false; btn.innerText = "RETRY";
+        if (state.isDemo) setTimeout(() => initMap(state.level, true), 2000);
+    }
+
+    function closeSpecial() { document.getElementById('special-overlay').style.display = 'none'; }
+
+    function updateTrainVisual() {
+        const trn = document.getElementById('train'); trn.style.left = state.train.x + 'px'; trn.style.top = state.train.y + 'px';
+        const rot = (state.train.dir === 1 ? 90 : state.train.dir === 2 ? 180 : state.train.dir === 3 ? 270 : 0);
+        trn.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
+        if (state.debug) document.getElementById('debug-text').innerHTML = `X: ${state.train.x.toFixed(1)} Y: ${state.train.y.toFixed(1)} DIR: ${state.train.dir} SPD: ${state.train.speed.toFixed(2)}`;
+    }
+
+    function toggleDebug() { 
+        if (state.active || state.gameOver) return;
+        state.debug = !state.debug; 
+        const dbgBtn = document.getElementById('dbg-btn');
+        if (state.debug) { dbgBtn.classList.add('debug-active'); document.getElementById('debug-layer').style.display = 'block'; resetIdle(); } 
+        else { dbgBtn.classList.remove('debug-active'); document.getElementById('debug-layer').style.display = 'none'; }
+    }
+    
+    function toggleSettings() { resetIdle(); state.isSettingsOpen = !state.isSettingsOpen; document.getElementById('accordion-content').classList.toggle('open'); document.getElementById('accordion-toggle').innerText = state.isSettingsOpen ? '▲ SETTINGS' : '▼ SETTINGS / DEBUG'; }
+    
+    function testLevel(lv) { 
+        if (state.debug) { state.debug = false; document.getElementById('dbg-btn').classList.remove('debug-active'); document.getElementById('debug-layer').style.display = 'none'; }
+        resetIdle(); initMap(lv); if (state.isSettingsOpen) toggleSettings(); 
+    }
+    
+    function updateVolume(val) { state.volume = val / 100; state.lastActivity = Date.now(); }
+    
+    function changeTheme(id) { 
+        resetIdle(); const t = THEMES[id]; if (!t) return; 
+        document.documentElement.style.setProperty('--page-bg', t.page); document.documentElement.style.setProperty('--bg-color', t.bg); document.documentElement.style.setProperty('--grid-line', t.grid); 
+        if (state.isSettingsOpen) toggleSettings();
+    }
+
+    window.onload = () => { initMap(1); requestAnimationFrame(gameLoop); };
+</script>
+</body>
+</html>
