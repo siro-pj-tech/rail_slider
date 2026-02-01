@@ -3,14 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Rail Slider 2D - スライドパズルで列車を導くアクションパズルゲーム。チクタクバンバンへのリスペクトを込めて作成されました。">
-    <meta name="author" content="Your Name / GitHub Username">
+    <meta name="description" content="Rail Slider 2D - スライドパズルで列車を導くアクションパズルゲーム。">
     <title>Rail Slider 2D - Master Edition</title>
-    <!--
-    Rail Slider 2D v1.0
-    Inspired by: Nomura Toy's "Chiku Taku Ban Ban"
-    Developed with: HTML5, CSS3, JavaScript (Web Audio API)
-    -->
     <style>
         :root {
             --bg-color: #000;
@@ -61,7 +55,7 @@
         #level-display { display: flex; align-items: center; gap: 5px; }
         .crown-area { display: flex; align-items: center; gap: 2px; color: #ffd700; }
         .crown-icon { text-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
-        #status-display { color: var(--line-color); min-width: 80px; text-align: right; }
+        #status-display { color: var(--line-color); min-width: 80px; text-align: right; font-family: monospace; }
 
         #game-view {
             position: relative;
@@ -136,7 +130,7 @@
         #train.running { animation: train-wobble 0.2s infinite ease-in-out; }
 
         .steam { position: absolute; background: #fff; border-radius: 50%; pointer-events: none; z-index: 99; opacity: 0.6; }
-        .particle { position: absolute; background: #fff; border-radius: 50%; pointer-events: none; z-index: 101; }
+        .particle { position: absolute; background: #fff; pointer-events: none; z-index: 101; }
 
         #ui-container {
             width: 100%;
@@ -183,23 +177,30 @@
             border-top: 1px solid rgba(255,255,255,0.1);
         }
         #accordion-toggle { padding: 6px 20px; font-size: 10px; font-weight: bold; color: #fff; cursor: pointer; width: 100%; text-align: center; }
-        #accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; width: 100%; background: rgba(0,0,0,0.5); }
-        #accordion-content.open { max-height: 250px; padding: 15px 0; }
+        #accordion-content { max-height: 0; overflow-y: auto; overflow-x: hidden; transition: max-height 0.4s ease-out; width: 100%; background: rgba(0,0,0,0.8); }
+        #accordion-content.open { max-height: 350px; padding: 15px 0; }
 
-        .settings-row { display: flex; justify-content: center; gap: 12px; margin: 8px 0; align-items: center; }
+        .settings-row { display: flex; justify-content: center; gap: 8px; margin: 8px 0; align-items: center; padding: 0 10px; }
         .level-btn { padding: 10px 18px; font-size: 12px; font-weight: bold; border: 1px solid #fff; background: transparent; color: #fff; border-radius: 6px; cursor: pointer; }
+        .arrange-btn { background: #ffd700; color: #000; border: none; font-weight: bold; font-size: 12px; padding: 10px 18px; border-radius: 6px; cursor: pointer; }
         .theme-dot-large { width: 32px; height: 32px; border: 2px solid #fff; border-radius: 50%; cursor: pointer; }
+        
         input[type=range] { cursor: pointer; width: 150px; accent-color: #fff; }
+        .reset-btn { background: #f00; color: #fff; border: none; padding: 8px 20px; font-size: 10px; border-radius: 4px; cursor: pointer; margin-top: 15px; font-weight: bold; }
 
-        #special-overlay {
+        .overlay-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95);
-            display: none; flex-direction: column; justify-content: center; align-items: center; padding: 40px; text-align: center; z-index: 2000; animation: fadeIn 2s ease-in;
+            display: none; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; z-index: 2000; 
         }
+        .overlay-msg { font-size: 18px; line-height: 1.6; color: #fff; max-width: 600px; font-style: italic; font-weight: bold; }
+        .overlay-close { margin-top: 30px; padding: 10px 20px; border: 1px solid #fff; background: transparent; color: #fff; cursor: pointer; border-radius: 4px; }
 
-        #special-msg { font-size: 18px; line-height: 1.6; color: #fff; max-width: 600px; font-style: italic; font-weight: bold; }
-        #special-close { margin-top: 30px; padding: 10px 20px; border: 1px solid #fff; background: transparent; color: #fff; cursor: pointer; }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .arrange-container { width: 100%; max-width: 320px; text-align: left; }
+        .arrange-header { font-size: 13px; color: #ffd700; margin-bottom: 15px; line-height: 1.4; font-weight: bold; text-align: center; }
+        .arrange-label { font-size: 10px; color: #ccc; margin-bottom: 5px; display: block; }
+        .arrange-input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
+        .arrange-select { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; margin-bottom: 20px; }
+        .save-btn { width: 100%; padding: 12px; background: #fff; color: #000; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; }
 
         #debug-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; display: none; }
         #debug-text { position: absolute; top: 5px; left: 5px; font-size: 10px; color: #0f0; background: rgba(0,0,0,0.6); font-family: monospace; padding: 4px; line-height: 1.4; }
@@ -244,6 +245,9 @@
                     <button class="level-btn" onclick="testLevel(3)">LV.3</button>
                 </div>
                 <div class="settings-row">
+                    <button class="arrange-btn" onclick="openArrangeMenu()">アレンジ</button>
+                </div>
+                <div class="settings-row">
                     <div class="theme-dot-large" style="background:#000;" onclick="changeTheme(1)"></div>
                     <div class="theme-dot-large" style="background:#0a0e20;" onclick="changeTheme(2)"></div>
                     <div class="theme-dot-large" style="background:#4a0e2e;" onclick="changeTheme(3)"></div>
@@ -251,17 +255,38 @@
                     <div class="theme-dot-large" style="background:#ff8f00;" onclick="changeTheme(5)"></div>
                 </div>
                 <div class="settings-row">
-                    <div style="font-size: 10px; font-weight: bold; margin-right: 5px;">VOLUME</div>
+                    <div style="font-size: 9px; font-weight: bold; color:#ccc;">VOLUME</div>
                     <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="updateVolume(this.value)">
                 </div>
+                <button class="reset-btn" onclick="resetAllConfig()">ALL RESET</button>
             </div>
         </div>
     </div>
 </div>
 
-<div id="special-overlay">
-    <div id="special-msg"></div>
-    <button id="special-close" onclick="closeSpecial()">CONTINUE</button>
+<div id="special-overlay" class="overlay-screen">
+    <div id="special-msg" class="overlay-msg"></div>
+    <button class="overlay-close" onclick="closeOverlay()">CONTINUE</button>
+</div>
+
+<div id="arrange-overlay" class="overlay-screen" style="display:none;">
+    <div class="arrange-container">
+        <div class="arrange-header">
+            これは貴方オリジナルのメッセージをクリア後に表示させるモードです。150文字以内でメッセージを入力し、保存ボタンを押してください。設定メニューからオールリセットボタンを押すと解除されます
+        </div>
+        <label class="arrange-label">メッセージ (漢字変換OK / 150字以内)</label>
+        <textarea id="arrange-input" class="arrange-input" rows="4" maxlength="150" placeholder="メッセージを入力してください..."></textarea>
+        
+        <label class="arrange-label">対象レベル</label>
+        <select id="arrange-lv-select" class="arrange-select">
+            <option value="1">Level 1</option>
+            <option value="2">Level 2</option>
+            <option value="3">Level 3</option>
+        </select>
+        
+        <button class="save-btn" onclick="saveArrange()">保存してアレンジモード開始</button>
+        <button class="overlay-close" style="width:100%;" onclick="closeArrangeMenu()">キャンセル</button>
+    </div>
 </div>
 
 <script>
@@ -292,6 +317,13 @@
         3: { start: {r:9, c:3}, goal: {r:0, c:0}, pStart: 1, pEnd: 8 }
     };
 
+    const DEFAULT_THRESHOLDS = { 1: 5, 2: 5, 3: 1 };
+    const DEFAULT_MESSAGES = {
+        1: "Thank you for playing so much. <br> I pay my utmost respect to you. <br><br> And I also thank everyone at Nomura Toy <br> for giving me this idea. <br><br> Thank you all so much.",
+        2: "Thank you for playing our game again and again. You can change this message in the settings menu. Change it to your preferred message and enjoy playing games with your friends.",
+        3: "I can't believe it! <br> You're a puzzle god! <br><br> I'll give you the title of <br> 'Rail Slider Master'! <br><br> Congratulations!"
+    };
+
     const TILE_SIZE = 55, COLS = 4, TOTAL_ROWS = 10, IDLE_LIMIT = 15000;
 
     let state = {
@@ -299,8 +331,10 @@
         active: false, train: { x: 0, y: 0, dir: 0, speed: 0.4 },
         lastSnappedTile: { r: -1, c: -1 }, lastCheckedTile: { r: -1, c: -1 },
         gameOver: false, clearHistory: { 1: 0, 2: 0, 3: 0 },
-        milestoneReached: { 1: false, 2: false, 3: false },
-        masterTitleGranted: false, 
+        thresholds: { ...DEFAULT_THRESHOLDS },
+        messages: { ...DEFAULT_MESSAGES },
+        isArrangeMode: false,
+        arrangeMessage: "",
         lastActivity: Date.now(), isDemo: false, debug: false,
         isSettingsOpen: false, lastTime: 0, volume: 0.5, runningSoundTick: 0
     };
@@ -325,7 +359,7 @@
 
     function playApplause() {
         if (state.volume === 0) return;
-        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2.5, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
         const source = audioCtx.createBufferSource(); source.buffer = buffer;
@@ -346,7 +380,9 @@
         state.puzzleTiles = [];
         const staticLayer = document.getElementById('static-layer'), puzzleLayer = document.getElementById('puzzle-layer');
         staticLayer.innerHTML = ''; puzzleLayer.innerHTML = '';
-        document.getElementById('level-title').innerText = `LV.${lv}`;
+        
+        document.getElementById('level-title').innerText = state.isArrangeMode ? "アレンジ" : `LV.${lv}`;
+        
         const status = document.getElementById('status-display');
         status.innerText = fromDemo ? "DEMO" : "READY"; status.style.color = "var(--line-color)";
         const startBtn = document.getElementById('main-start-btn');
@@ -382,6 +418,44 @@
         if (fromDemo) setTimeout(startGame, 1000);
     }
 
+    function handleUserAction(e) {
+        state.lastActivity = Date.now();
+        const isInput = e && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA');
+        if (state.isSettingsOpen && !isInput) closeSettings();
+        if (state.isDemo) { state.isDemo = false; initMap(state.level); }
+    }
+
+    function openArrangeMenu() {
+        document.getElementById('arrange-input').value = ""; 
+        document.getElementById('arrange-overlay').style.display = "flex";
+        closeSettings();
+    }
+
+    function closeArrangeMenu() { document.getElementById('arrange-overlay').style.display = "none"; }
+
+    function saveArrange() {
+        const msg = document.getElementById('arrange-input').value.trim();
+        const lv = parseInt(document.getElementById('arrange-lv-select').value);
+        if (!msg) return; 
+        
+        state.isArrangeMode = true;
+        state.arrangeMessage = msg.replace(/\n/g, "<br>");
+        state.level = lv;
+        
+        closeArrangeMenu();
+        initMap(lv);
+    }
+
+    function resetAllConfig() {
+        state.clearHistory = { 1: 0, 2: 0, 3: 0 };
+        state.thresholds = { ...DEFAULT_THRESHOLDS };
+        state.messages = { ...DEFAULT_MESSAGES };
+        state.isArrangeMode = false;
+        state.arrangeMessage = "";
+        initMap(1);
+        closeSettings();
+    }
+
     function updateHUD() {
         const container = document.getElementById('crown-container'); container.innerHTML = '';
         const count = state.clearHistory[state.level];
@@ -398,15 +472,13 @@
         if (label) el.innerHTML += `<div style="position:absolute;font-size:9px;bottom:2px;width:100%;text-align:center;color:rgba(255,255,255,0.6)">${label}</div>`;
         const tileData = { r, c, type, el, locked: isStatic };
         if (!isStatic) {
-            el.onpointerdown = (e) => { e.preventDefault(); resetIdle(); moveTile(tileData.r, tileData.c); };
+            el.onpointerdown = (e) => { e.preventDefault(); handleUserAction(e); moveTile(tileData.r, tileData.c); };
             state.puzzleTiles.push(tileData); updateTileVisual(tileData);
         }
         state.map[r][c] = tileData; parent.appendChild(el);
     }
 
     function updateTileVisual(tile) { tile.el.style.transform = `translate(${tile.c * TILE_SIZE}px, ${tile.r * TILE_SIZE}px)`; tile.el.style.top = '0px'; tile.el.style.left = '0px'; }
-
-    function resetIdle() { state.lastActivity = Date.now(); if (state.isDemo) { state.isDemo = false; initMap(state.level); } }
 
     function moveTile(targetR, targetC) {
         if (!state.active && !state.isDemo && !state.debug) return;
@@ -433,9 +505,9 @@
         }
     }
 
-    function handleControl(dir) { resetIdle(); let tr = state.emptyPos.r, tc = state.emptyPos.c; if(dir==='up') tr++; if(dir==='down') tr--; if(dir==='left') tc++; if(dir==='right') tc--; if (tr >= 0 && tr < TOTAL_ROWS && tc >= 0 && tc < COLS) moveTile(tr, tc); }
+    function handleControl(dir) { handleUserAction(); let tr = state.emptyPos.r, tc = state.emptyPos.c; if(dir==='up') tr++; if(dir==='down') tr--; if(dir==='left') tc++; if(dir==='right') tc--; if (tr >= 0 && tr < TOTAL_ROWS && tc >= 0 && tc < COLS) moveTile(tr, tc); }
 
-    function handleStartClick() { resetIdle(); if (audioCtx.state === 'suspended') audioCtx.resume(); if (state.gameOver) initMap(state.level); else startGame(); }
+    function handleStartClick() { handleUserAction(); if (audioCtx.state === 'suspended') audioCtx.resume(); if (state.gameOver) initMap(state.level); else startGame(); }
 
     function startGame() {
         if (state.active || state.gameOver) return;
@@ -458,20 +530,10 @@
     }
 
     function gameLoop(timestamp) {
-        // --- 常時アイドル監視ロジック ---
-        if (!state.isDemo && !state.debug && !state.active) {
-             if (Date.now() - state.lastActivity > IDLE_LIMIT) {
-                 initMap(state.level, true);
-                 requestAnimationFrame(gameLoop);
-                 return;
-             }
+        if (!state.active && !state.isDemo && !state.debug) {
+             if (Date.now() - state.lastActivity > IDLE_LIMIT) { initMap(state.level, true); requestAnimationFrame(gameLoop); return; }
         }
-
-        if (!state.active || state.gameOver) {
-            requestAnimationFrame(gameLoop); 
-            return;
-        }
-
+        if (!state.active || state.gameOver) { requestAnimationFrame(gameLoop); return; }
         const delta = timestamp - state.lastTime; state.lastTime = timestamp;
         const factor = Math.min(delta / 16.67, 2.0);
         state.runningSoundTick += delta;
@@ -493,10 +555,7 @@
         if (curR === config.goal.r && curC === config.goal.c) {
             const gX = curC * TILE_SIZE + TILE_SIZE / 2, gY = curR * TILE_SIZE + TILE_SIZE / 2;
             if (Math.hypot(state.train.x - gX, state.train.y - gY) < move * 1.5) { 
-                success(); 
-                state.train.x = gX; state.train.y = gY;
-                updateTrainVisual();
-                return; 
+                success(); state.train.x = gX; state.train.y = gY; updateTrainVisual(); return; 
             }
         }
         state.puzzleTiles.forEach(t => { t.locked = false; t.el.classList.remove('locked'); });
@@ -514,26 +573,26 @@
         state.gameOver = true; state.active = false; playApplause();
         document.getElementById('train').classList.remove('running');
         let showOverlay = false, msg = "";
+        
         if (!state.isDemo && !state.debug) {
             state.clearHistory[state.level]++; updateHUD();
-            if (state.level === 3 && state.clearHistory[3] === 1 && !state.masterTitleGranted) {
-                state.masterTitleGranted = true;
-                msg = "I can't believe it! <br> You're a puzzle god! <br><br> I'll give you the title of <br> 'Rail Slider Master'! <br><br> Congratulations!";
-                showOverlay = true;
-            } else if (state.clearHistory[state.level] === 5 && !state.milestoneReached[state.level]) {
-                state.milestoneReached[state.level] = true;
-                msg = "Thank you for playing so much. <br> I pay my utmost respect to you. <br><br> And I also thank everyone at Nomura Toy <br> for giving me this idea. <br><br> Thank you all so much.";
-                showOverlay = true;
+            if (state.isArrangeMode) {
+                msg = state.arrangeMessage; showOverlay = true;
+            } else {
+                if (state.clearHistory[state.level] === state.thresholds[state.level]) {
+                    msg = state.messages[state.level]; showOverlay = true;
+                }
             }
         }
         document.getElementById('status-display').innerText = state.isDemo ? "DEMO END" : "CLEAR!";
         document.getElementById('status-display').style.color = "#0ff";
         const btn = document.getElementById('main-start-btn'); btn.disabled = false; btn.innerText = "RETRY";
-        if (showOverlay) {
+        if (showOverlay && msg) {
             document.getElementById('special-msg').innerHTML = msg;
             setTimeout(() => document.getElementById('special-overlay').style.display = 'flex', 500);
         }
         if (state.isDemo) setTimeout(() => initMap(state.level, true), 2000);
+        state.lastActivity = Date.now();
     }
 
     function crash(msg) {
@@ -544,9 +603,10 @@
         const sd = document.getElementById('status-display'); sd.innerText = msg; sd.style.color = "#f00";
         const btn = document.getElementById('main-start-btn'); btn.disabled = false; btn.innerText = "RETRY";
         if (state.isDemo) setTimeout(() => initMap(state.level, true), 2000);
+        state.lastActivity = Date.now();
     }
 
-    function closeSpecial() { document.getElementById('special-overlay').style.display = 'none'; }
+    function closeOverlay() { document.getElementById('special-overlay').style.display = 'none'; }
 
     function updateTrainVisual() {
         const trn = document.getElementById('train'); trn.style.left = state.train.x + 'px'; trn.style.top = state.train.y + 'px';
@@ -557,25 +617,45 @@
 
     function toggleDebug() { 
         if (state.active || state.gameOver) return;
+        handleUserAction();
         state.debug = !state.debug; 
         const dbgBtn = document.getElementById('dbg-btn');
-        if (state.debug) { dbgBtn.classList.add('debug-active'); document.getElementById('debug-layer').style.display = 'block'; resetIdle(); } 
+        if (state.debug) { dbgBtn.classList.add('debug-active'); document.getElementById('debug-layer').style.display = 'block'; } 
         else { dbgBtn.classList.remove('debug-active'); document.getElementById('debug-layer').style.display = 'none'; }
     }
     
-    function toggleSettings() { resetIdle(); state.isSettingsOpen = !state.isSettingsOpen; document.getElementById('accordion-content').classList.toggle('open'); document.getElementById('accordion-toggle').innerText = state.isSettingsOpen ? '▲ SETTINGS' : '▼ SETTINGS / DEBUG'; }
+    function toggleSettings() {
+        state.lastActivity = Date.now();
+        state.isSettingsOpen = !state.isSettingsOpen;
+        document.getElementById('accordion-content').classList.toggle('open');
+        document.getElementById('accordion-toggle').innerText = state.isSettingsOpen ? "▲ SETTINGS" : "▼ SETTINGS / DEBUG";
+    }
+
+    function closeSettings() {
+        state.isSettingsOpen = false;
+        document.getElementById('accordion-content').classList.remove('open');
+        document.getElementById('accordion-toggle').innerText = "▼ SETTINGS / DEBUG";
+    }
     
     function testLevel(lv) { 
-        if (state.debug) { state.debug = false; document.getElementById('dbg-btn').classList.remove('debug-active'); document.getElementById('debug-layer').style.display = 'none'; }
-        resetIdle(); initMap(lv); if (state.isSettingsOpen) toggleSettings(); 
+        handleUserAction();
+        // ★ 修正：アレンジモード中はレベルを固定（isArrangeModeを変更しない）
+        if (!state.isArrangeMode) {
+            if (state.debug) {
+                state.debug = false;
+                document.getElementById('dbg-btn').classList.remove('debug-active');
+                document.getElementById('debug-layer').style.display = 'none';
+            }
+        }
+        initMap(lv);
     }
     
     function updateVolume(val) { state.volume = val / 100; state.lastActivity = Date.now(); }
     
     function changeTheme(id) { 
-        resetIdle(); const t = THEMES[id]; if (!t) return; 
+        handleUserAction();
+        const t = THEMES[id]; if (!t) return; 
         document.documentElement.style.setProperty('--page-bg', t.page); document.documentElement.style.setProperty('--bg-color', t.bg); document.documentElement.style.setProperty('--grid-line', t.grid); 
-        if (state.isSettingsOpen) toggleSettings();
     }
 
     window.onload = () => { initMap(1); requestAnimationFrame(gameLoop); };
