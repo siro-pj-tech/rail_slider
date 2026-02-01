@@ -1,5 +1,5 @@
 # Rail Slider 2D - Master Edition
-- Rail Slider 2Dは、スライドパズルを操作して列車をゴールまで導くアクションパズルゲームです。1980年代の名作「チクタクバンバン」にインスパイアされ、現代のWeb技術（HTML5 / JavaScript / Web Audio API）で再構築されました。
+- Rail Slider 2Dは、スライドパズルを操作して列車をゴールまで導くアクションパズルゲームです。1980年代の名作スライドパズル玩具にインスパイアされ、現代のWeb技術（HTML5 / JavaScript / Web Audio API）で再構築されました。
 
 ## 🎮 プレイ方法
 1. **[START] ボタン**を押して列車を動かします。
