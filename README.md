@@ -22,11 +22,11 @@
 - **ベクトルグラフィックス (SVG)**: 美しく拡大縮小されるレール表示。
 
 ## 📜 ライセンス・謝辞
-このプロジェクトは学習およびファン制作の一環として作成されました。
-- **Special Thanks**: このゲームの独創的な発想を与えてくれた「野村トーイ」関係者の皆様に最大限の敬意と感謝を捧げます。
-- License: MIT License (公開時にhttps://www.google.com/search?q=LICENSEファイルを作成してください)
-
-"I can't believe it! You're a puzzle god! I'll give you the title of Rail Slider Master! Congratulations!"
+**Special Thanks & Credits**
+- 本プロジェクトは、1980年代の名作玩具「チクタクバンバン」にインスパイアされたファン制作作品です。
+- Original Concept: 独創的な発想を生み出した「野村トーイ」関係者の皆様に最大限の敬意を捧げます。
+- Trademark: 「チクタクバンバン」は株式会社メガハウスの登録商標です。本アプリは個人による学習目的のプロジェクトであり、権利元とは一切関係ありません。
+- License: MIT License
 
 # 🛠 アレンジモードのご案内 (Arrange Mode Guide)
 
